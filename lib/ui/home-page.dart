@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:agenda_flutter/helpers/contact_helper.dart';
 import 'package:agenda_flutter/ui/contact_page.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+enum OrderOptions {orderaz, orderza}
 
 class HomePage extends StatefulWidget {
   @override
@@ -25,6 +28,21 @@ class _HomePageState extends State<HomePage> {
         title: Text("Contatos"),
         backgroundColor: Colors.red,
         centerTitle: true,
+        actions: <Widget>[
+          PopupMenuButton<OrderOptions>(
+            itemBuilder: (context) => <PopupMenuEntry<OrderOptions>>[
+              const PopupMenuItem<OrderOptions>(
+                child: Text("Ordenar de A-Z"),
+                value: OrderOptions.orderaz,
+              ),
+              const PopupMenuItem<OrderOptions>(
+                child: Text("Ordenar de Z-A"),
+                value: OrderOptions.orderza,
+              )
+            ],
+            onSelected: _orderList,
+          )
+        ],
       ),
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
@@ -43,25 +61,25 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-  Widget _contactCard(BuildContext context, int index){
+
+  Widget _contactCard(BuildContext context, int index) {
     return GestureDetector(
       child: Card(
         child: Padding(
-          padding:EdgeInsets.all(10),
+          padding: EdgeInsets.all(10),
           child: Row(
             children: <Widget>[
               Container(
                 height: 80,
                 width: 80,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: DecorationImage(
-                    // image: contacts[index].img != null 
-                    //   ? FileImage(File(contacts[index].img))
-                    //   : AssetImage("imgs/person.png"),
-                    image: AssetImage("imgs/person.png")
-                  )
-                ),
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                        image: contacts[index].img != null
+                          ? FileImage(File(contacts[index].img))
+                          : AssetImage("imgs/person.png"),
+                        fit: BoxFit.cover,
+                    )),
               ),
               Padding(
                 padding: EdgeInsets.only(left: 10),
@@ -94,32 +112,123 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      onTap: (){
-        _showContactPage(contact: contacts[index]);
+      onTap: () {
+        _showOptions(context, index);
       },
     );
   }
-  void _showContactPage({Contact contact}) async{
-    final recContact = await Navigator.push(
-      context, 
-      MaterialPageRoute(builder: (context)=> ContactPage(contact: contact,))
-    );
 
-    if(recContact != null){
-      if(contact != null){
+  void _showOptions(BuildContext context, int index) {
+    showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return BottomSheet(
+              onClosing: () {},
+              builder: (context) {
+                return Container(
+                  padding: EdgeInsets.all(10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Padding(
+                        padding: EdgeInsets.all(10),
+                        child: FlatButton(
+                          onPressed: (){
+                            launch("tel:${contacts[index].phone}");
+                            Navigator.pop(context);
+                          },
+                          child: Text(
+                            "Ligar",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                       Padding(
+                        padding: EdgeInsets.all(10),
+                        child: FlatButton(
+                          onPressed: (){
+                            Navigator.pop(context);
+                            _showContactPage(contact: contacts[index]);
+                          },
+                          child: Text(
+                            "Editar",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                       Padding(
+                        padding: EdgeInsets.all(10),
+                        child: FlatButton(
+                          onPressed: (){
+                            helper.deleteContact(contacts[index].id);
+                            setState(() {
+                              contacts.removeAt(index);
+                              Navigator.pop(context);
+                            });
+                          },
+                          child: Text(
+                            "Excluir",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              });
+        });
+  }
+
+  void _showContactPage({Contact contact}) async {
+    final recContact = await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => ContactPage(
+                  contact: contact,
+                )));
+
+    if (recContact != null) {
+      if (contact != null) {
         await helper.updateContact(recContact);
-      }else{
+      } else {
         await helper.saveContact(recContact);
       }
       _getAllContacts();
     }
   }
 
-  void _getAllContacts(){
+  void _getAllContacts() {
     helper.getAllContacts().then((list) {
       setState(() {
         contacts = list;
       });
+    });
+  }
+
+  void _orderList(OrderOptions result){
+    switch (result) {
+      case OrderOptions.orderaz:
+        contacts.sort((a, b){
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        });
+        break;
+      case OrderOptions.orderza:
+        contacts.sort((a, b){
+          return b.name.toLowerCase().compareTo(a.name.toLowerCase());
+        });
+        break;
+    }
+    setState(() {
+      
     });
   }
 }
